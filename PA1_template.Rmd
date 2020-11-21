@@ -1,25 +1,104 @@
 ---
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
+title: "project1"
+output:
+    html_document:
+        keep_md: true
+    
 ---
 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
 
 ## Loading and preprocessing the data
 
+The following code is used to preprocess and prepare the data.
 
+```{r echo=T}
+library(ggplot2)
+download.file(url = 'https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip', 
+              destfile = paste(getwd(), 'activity.zip', sep = '/'))
+unzip('activity.zip')
+activity = data.table::fread('activity.csv')
+```
+
+### Histogram of the total number of steps taken each day
+
+Following is the code to generate the histogram with the plot itself as well.
+
+```{r, echo=TRUE}
+total_steps = activity[, lapply(.SD, sum, na.rm=F), .SDcols = c('steps'), by = date] 
+ggplot(total_steps) +
+    geom_histogram(aes(x=steps), binwidth = 1000) +
+    labs(title='Num of steps taken each day') + 
+    labs(x='Steps', y= 'Frequency')
+
+```
 
 ## What is mean total number of steps taken per day?
+Following is the code to calculate the mean and median of the steps taken each day.
 
+```{r, echo = TRUE}
+total_steps[, .(Mean_Steps = mean(steps, na.rm = TRUE), Median_Steps = median(steps, na.rm = TRUE))]
+```
 
+### Time series plot of the average number of steps taken
+Following is the code for the time series plot of steps taken each day.
+
+```{r, echo = TRUE}
+
+time_series = activity[, lapply(.SD, mean, na.rm=T), .SDcols = c('steps'), by = 'interval']
+
+ggplot(data = time_series) + 
+    geom_line(aes(x = interval, y = steps)) + 
+    xlab("")
+
+```
 
 ## What is the average daily activity pattern?
-
-
+Following is the code for determining which interval has the max number of steps.
+```{r,echo=T}
+time_series[which.max(time_series$steps)]
+```
 
 ## Imputing missing values
+Here I will replace the missing values with the mean.
 
+```{r, echo=TRUE}
+activity[is.na(steps), 'steps'] = activity[, lapply(.SD, mean, na.rm=T), .SDcols=c('steps')]
+
+```
+
+### Histogram of the total number of steps taken each day after missing values are imputed
+Here is the histogram of the steps after replacing missing values.
+```{r, echo=TRUE}
+total_steps = activity[, lapply(.SD, sum, na.rm=F), .SDcols = c('steps'), by = date] 
+ggplot(total_steps) +
+    geom_histogram(aes(x=steps), binwidth = 1000)+
+    labs(title='Num of steps taken each day') + 
+    labs(x='Steps', y= 'Frequency')
+
+```
 
 
 ## Are there differences in activity patterns between weekdays and weekends?
+Now lets compare the activity across weekdays and weekends.
+
+```{r, echo = T}
+#Reading a clean version of the data
+activity = data.table::fread('activity.csv')
+activity[, isWeekend := chron::is.weekend(activity$date)]
+activity[is.na(steps), 'steps'] = activity[, lapply(.SD, mean, na.rm=T), .SDcols = c('steps')]
+interval = activity[,lapply(.SD, mean, na.rm=T), .SDcols=c('steps'), by=.(interval, isWeekend)]
+```
+Now to create the plot
+```{r echo=T}
+ggplot(data=interval) +
+    geom_line(aes(x=interval,y=steps,color=isWeekend)) +
+    labs(x='Interval', y='Steps') +
+    labs(main='Comparing activity over weekends and weekdays') +
+    facet_wrap(~'isWeekend', ncol=1, nrow=2)
+```
+
+
+
